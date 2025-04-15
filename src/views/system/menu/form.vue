@@ -36,7 +36,7 @@ const props = withDefaults(defineProps<FormProps>(), {
     auths: "",
     frameSrc: "",
     frameLoading: true,
-    keepAlive: false,
+    keepAlive: true,
     hiddenTag: false,
     fixedTag: false,
     showLink: true,
