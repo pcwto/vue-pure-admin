@@ -13,30 +13,29 @@ interface BarData {
   };
 }
 
+function formatTime(date: Date) {
+  return date.toISOString().substring(11, 16); // HH:mm
+}
+
 function generateMonthCheck(startDateStr: string, trainCount = 17): BarData[][] {
   const bars: BarData[][] = [];
   const baseDate = new Date(startDateStr);
 
   for (let i = 0; i < trainCount; i++) {
-    const beginDate = new Date(baseDate);
-    beginDate.setDate(baseDate.getDate() + i * 3); // 间隔3天检查
-
-    const dayOfWeek = beginDate.getDay(); // 周五为5
-    const duration = dayOfWeek === 5 ? 3 : 2;
-
-    const endDate = new Date(beginDate);
-    endDate.setDate(beginDate.getDate() + duration - 1);
-
-    const format = (d: Date) => d.toISOString().split("T")[0];
+    const startDate = new Date(baseDate);
+    startDate.setDate(baseDate.getDate() + i * 3); // 每列车间隔3天开始检修
+    const day = startDate.getDay(); // 0=周日, 5=周五
+    const endDate = new Date(startDate);
+    endDate.setDate(startDate.getDate() + (day === 5 ? 3 : 2)); // 周五+3天，其它+2天
 
     bars.push([
       {
-        beginDate: format(beginDate),
-        endDate: format(endDate),
+        beginDate: formatTime(startDate),
+        endDate: formatTime(endDate),
         ganttBarConfig: {
-          id: `${i}`,
+          id: i.toString(),
           hasHandles: true,
-          label: `月检计划 负责人：员工${i + 1}`,
+          label: `Train No.${(i + 1).toString().padStart(2, "0")} 检修`,
           style: {
             background: "#5ccfa3"
           }
@@ -49,57 +48,39 @@ function generateMonthCheck(startDateStr: string, trainCount = 17): BarData[][] 
 }
 
 const context = ref(generateMonthCheck("2025-04-01"));
-const trainLabels = Array.from({ length: 17 }, (_, i) => `Train No.${String(i + 1).padStart(2, "0")}`);
 
-// 增加
-const addBar = () => {
-  const index = context.value.length;
-  const newDate = new Date("2025-05-01");
-  newDate.setDate(newDate.getDate() + index * 3);
-  const day = newDate.getDay();
-  const duration = day === 5 ? 3 : 2;
+const startDateDisplay = ref("2025-04-01");
 
-  const endDate = new Date(newDate);
-  endDate.setDate(newDate.getDate() + duration - 1);
+function refresh() {
+  context.value = generateMonthCheck(startDateDisplay.value);
+}
+</script>
 
-  const format = (d: Date) => d.toISOString().split("T")[0];
+<template>
+  <div style="margin-bottom: 1rem;">
+    <input type="date" v-model="startDateDisplay" />
+    <button @click="refresh">生成月检计划</button>
+  </div>
 
-  context.value.push([
-    {
-      beginDate: format(newDate),
-      endDate: format(endDate),
-      ganttBarConfig: {
-        id: `${index}`,
-        hasHandles: true,
-        label: `新增计划 负责人：新员工${index + 1}`,
-        style: {
-          background: "#e96560"
-        }
-      }
-    }
-  ]);
-  trainLabels.push(`Train No.${String(index + 1).padStart(2, "0")}`);
-};
+  <g-gantt-chart
+    chart-start="00:00"
+    chart-end="23:59"
+    precision="hour"
+    date-format="HH:mm"
+    bar-start="beginDate"
+    bar-end="endDate"
+    grid
+  >
+    <template #upper-timeunit>
+      <h3>{{ `月检起始日：${startDateDisplay}` }}</h3>
+    </template>
 
-// 删除
-const deleteBar = () => {
-  if (context.value.length > 0) {
-    context.value.pop();
-    trainLabels.pop();
-  }
-};
-
-// 修改
-const editBar = () => {
-  if (context.value.length > 0) {
-    context.value[0][0].ganttBarConfig.label = "修改后的计划 负责人：张三";
-    context.value[0][0].ganttBarConfig.style = {
-      background: "#f8bc45"
-    };
-  }
-};
-
-// 打印数据
-const printData = () => {
-  console.log(JSON.stringify(context.value, null, 2));
-};
+    <g-gantt-row
+      v-for="(item, index) in context"
+      :key="index"
+      :bars="item"
+      :label="`Train No.${(index + 1).toString().padStart(2, '0')}`"
+      highlight-on-hover
+    />
+  </g-gantt-chart>
+</template>
